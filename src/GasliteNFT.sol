@@ -30,15 +30,15 @@ pragma solidity 0.8.20;
 // forgefmt: disable-end
 
 import "@ERC721A/contracts/ERC721A.sol";
-import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@solady/src/utils/MerkleProofLib.sol";
+import "@solady/src/auth/Ownable.sol";
 import {LibString} from "@solady/src/utils/LibString.sol";
 
 /// @title GasliteNFT
 /// @notice Turbo gas optimized NFT contract
 /// @author Harrison (@PopPunkOnChain)
 /// @author Gaslite (@GasliteGG)
-contract GasliteNFT is ERC721A, Ownable2Step {
+contract GasliteNFT is ERC721A, Ownable {
     bytes32 public whitelistRoot;
     uint256 public immutable MAX_SUPPLY;
     uint120 public price;
@@ -82,7 +82,8 @@ contract GasliteNFT is ERC721A, Ownable2Step {
         uint64 _maxWhitelistMint,
         uint64 _maxPublicMint,
         string memory _uri
-    ) ERC721A(_name, _ticker) Ownable(msg.sender) {
+    ) ERC721A(_name, _ticker) {
+        _initializeOwner(msg.sender);
         whitelistRoot = _whitelistRoot;
         MAX_SUPPLY = _maxSupply;
         price = _price;
