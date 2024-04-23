@@ -30,15 +30,15 @@ pragma solidity 0.8.20;
 // forgefmt: disable-end
 
 import "@ERC721A/contracts/ERC721A.sol";
-import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@solady/src/utils/MerkleProofLib.sol";
+import "@solady/src/auth/Ownable.sol";
 import {LibString} from "@solady/src/utils/LibString.sol";
 
 /// @title GasliteNFT
 /// @notice Turbo gas optimized NFT contract
 /// @author Harrison (@PopPunkOnChain)
 /// @author Gaslite (@GasliteGG)
-contract GasliteNFT is ERC721A, Ownable2Step {
+contract GasliteNFT is ERC721A, Ownable {
     bytes32 public whitelistRoot;
     uint256 public immutable MAX_SUPPLY;
     uint120 public price;
@@ -82,7 +82,8 @@ contract GasliteNFT is ERC721A, Ownable2Step {
         uint64 _maxWhitelistMint,
         uint64 _maxPublicMint,
         string memory _uri
-    ) ERC721A(_name, _ticker) Ownable(msg.sender) {
+    ) ERC721A(_name, _ticker) {
+        _initializeOwner(msg.sender);
         whitelistRoot = _whitelistRoot;
         MAX_SUPPLY = _maxSupply;
         price = _price;
@@ -97,14 +98,23 @@ contract GasliteNFT is ERC721A, Ownable2Step {
     /// @notice Mint NFTs from the whitelist
     /// @param _proof Merkle proof of the address
     /// @param _amount Amount of NFTs to mint
-    function whitelistMint(bytes32[] calldata _proof, uint256 _amount) external payable {
+    function whitelistMint(
+        bytes32[] calldata _proof,
+        uint256 _amount
+    ) external payable {
         if (!live) revert MintNotLive();
         if (block.timestamp < whitelistOpen) revert WhitelistNotLive();
         if (block.timestamp > whitelistClose) revert WhitelistNotLive();
         uint256 minted = _numberMinted(msg.sender) + _amount;
         if (minted > maxWhitelistMint) revert MintExceeded();
         if (_totalMinted() + _amount > MAX_SUPPLY) revert SupplyExceeded();
-        if (!MerkleProofLib.verifyCalldata(_proof, whitelistRoot, keccak256(abi.encodePacked(msg.sender)))) {
+        if (
+            !MerkleProofLib.verifyCalldata(
+                _proof,
+                whitelistRoot,
+                keccak256(abi.encodePacked(msg.sender))
+            )
+        ) {
             revert WhitelistMintUnauthorized();
         }
         if (msg.value != _amount * whitelistPrice) revert InsufficientPayment();
@@ -129,7 +139,10 @@ contract GasliteNFT is ERC721A, Ownable2Step {
     /// @dev Only the owner can call this function
     /// @param _price Price of each NFT
     /// @param _whitelistPrice Price of each whitelist NFT
-    function setPrices(uint120 _price, uint120 _whitelistPrice) external onlyOwner {
+    function setPrices(
+        uint120 _price,
+        uint120 _whitelistPrice
+    ) external onlyOwner {
         price = _price;
         whitelistPrice = _whitelistPrice;
     }
@@ -151,7 +164,10 @@ contract GasliteNFT is ERC721A, Ownable2Step {
     /// @dev Only the owner can call this function
     /// @param _whitelistOpen Timestamp of when the whitelist opens
     /// @param _whitelistClose Timestamp of when the whitelist closes
-    function setWhitelistMintWindow(uint64 _whitelistOpen, uint64 _whitelistClose) external onlyOwner {
+    function setWhitelistMintWindow(
+        uint64 _whitelistOpen,
+        uint64 _whitelistClose
+    ) external onlyOwner {
         if (_whitelistOpen > _whitelistClose) revert InvalidWhitelistWindow();
         if (_whitelistOpen == 0) revert InvalidWhitelistWindow();
 
@@ -163,7 +179,10 @@ contract GasliteNFT is ERC721A, Ownable2Step {
     /// @dev Only the owner can call this function
     /// @param _maxWhitelistMint Max whitelist mint
     /// @param _maxPublcMint Max public mint
-    function setMaxMints(uint64 _maxWhitelistMint, uint64 _maxPublcMint) external onlyOwner {
+    function setMaxMints(
+        uint64 _maxWhitelistMint,
+        uint64 _maxPublcMint
+    ) external onlyOwner {
         maxWhitelistMint = _maxWhitelistMint;
         maxPublicMint = _maxPublcMint;
     }
@@ -177,17 +196,24 @@ contract GasliteNFT is ERC721A, Ownable2Step {
 
     /// @notice Get the base URI
     /// @return Base URI of the NFT
-    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+    function tokenURI(
+        uint256 tokenId
+    ) public view override returns (string memory) {
         if (!_exists(tokenId)) revert TokenDoesNotExist();
 
         string memory baseURI = _baseURIString;
-        return bytes(baseURI).length != 0 ? string(abi.encodePacked(baseURI, LibString.toString(tokenId))) : "";
+        return
+            bytes(baseURI).length != 0
+                ? string(abi.encodePacked(baseURI, LibString.toString(tokenId)))
+                : "";
     }
 
     /// @notice Withdraw the contract balance
     /// @dev Only the owner can call this function
     function withdraw() external onlyOwner {
-        (bool success,) = payable(msg.sender).call{value: address(this).balance}("");
+        (bool success, ) = payable(msg.sender).call{
+            value: address(this).balance
+        }("");
         require(success);
     }
 }
